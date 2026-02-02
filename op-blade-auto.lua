@@ -1,73 +1,131 @@
--- OP Blade Auto Farm Script (2026 Mobile-Friendly)
--- Auto collect loot, auto rebirth, noclip, anti-AFK
--- Use in OP Blade game - test on alt!
+-- OP Blade Auto Farm GUI (Rayfield UI - 2026 Mobile-Friendly)
+-- Toggle features in GUI | Re-execute to reload
 
-local player = game.Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
-local hum = char:WaitForChild("Humanoid")
-local root = char:WaitForChild("HumanoidRootPart")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local autoFarm = true  -- toggle by re-executing
+local Window = Rayfield:CreateWindow({
+   Name = "OP Blade Auto Farm 😎",
+   LoadingTitle = "Loading Auto Features...",
+   LoadingSubtitle = "by miniy",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil,
+      FileName = "OPBladeConfig"
+   }
+})
 
-print("OP Blade Auto Farm ON! Re-execute to toggle OFF.")
+local Tab = Window:CreateTab("Main", 4483362458) -- Icon ID example
 
--- Noclip (walk through walls)
-local noclip = true
+local Section = Tab:CreateSection("Auto Farm Controls")
+
+local autoCollectEnabled = false
+local noclipEnabled = false
+local autoRebirthEnabled = false
+
+-- Auto Collect Loot
+Tab:CreateToggle({
+   Name = "Auto Collect Loot",
+   CurrentValue = false,
+   Flag = "AutoCollect",
+   Callback = function(Value)
+      autoCollectEnabled = Value
+      Rayfield:Notify({
+         Title = "Auto Collect",
+         Content = Value and "Enabled - Loot auto-picks up!" or "Disabled",
+         Duration = 3
+      })
+   end
+})
+
+spawn(function()
+   while true do
+      wait(0.5)
+      if not autoCollectEnabled then continue end
+      for _, obj in pairs(workspace:GetChildren()) do
+         if obj:IsA("BasePart") and (obj.Name:lower():find("coin") or obj.Name:lower():find("loot") or obj.Name:lower():find("drop") or obj.Name:lower():find("chest") or obj.Name:lower():find("gem") or obj.Name:lower():find("reward")) then
+            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 0)
+            wait(0.1)
+            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 1)
+         end
+      end
+   end
+end)
+
+-- Noclip Toggle
+Tab:CreateToggle({
+   Name = "Noclip (Walk Through Walls)",
+   CurrentValue = false,
+   Flag = "Noclip",
+   Callback = function(Value)
+      noclipEnabled = Value
+      Rayfield:Notify({
+         Title = "Noclip",
+         Content = Value and "Enabled - Phase through everything!" or "Disabled",
+         Duration = 3
+      })
+   end
+})
+
 game:GetService("RunService").Stepped:Connect(function()
-    if not noclip then return end
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
+   if not noclipEnabled then return end
+   local char = game.Players.LocalPlayer.Character
+   if char then
+      for _, part in pairs(char:GetDescendants()) do
+         if part:IsA("BasePart") then
             part.CanCollide = false
-        end
-    end
+         end
+      end
+   end
 end)
 
--- Auto collect loot/items (firetouch drops/coins)
+-- Auto Rebirth Toggle
+Tab:CreateToggle({
+   Name = "Auto Rebirth",
+   CurrentValue = false,
+   Flag = "AutoRebirth",
+   Callback = function(Value)
+      autoRebirthEnabled = Value
+      Rayfield:Notify({
+         Title = "Auto Rebirth",
+         Content = Value and "Enabled - Rebirths when ready!" or "Disabled",
+         Duration = 3
+      })
+   end
+})
+
 spawn(function()
-    while autoFarm do
-        wait(0.5)
-        for _, obj in pairs(workspace:GetChildren()) do
-            if obj:IsA("BasePart") and (obj.Name:lower():find("coin") or obj.Name:lower():find("loot") or obj.Name:lower():find("drop") or obj.Name:lower():find("chest")) then
-                firetouchinterest(root, obj, 0)
-                wait(0.1)
-                firetouchinterest(root, obj, 1)
-            end
-        end
-    end
+   while true do
+      wait(10)
+      if not autoRebirthEnabled then continue end
+      pcall(function()
+         local rebirthGui = game.Players.LocalPlayer.PlayerGui:FindFirstChild("Rebirth", true) or game.Players.LocalPlayer.PlayerGui:FindFirstChild("RebirthButton", true) or game.Players.LocalPlayer.PlayerGui:FindFirstChild("Prestige", true)
+         if rebirthGui and rebirthGui:IsA("TextButton") then
+            firesignal(rebirthGui.MouseButton1Click)
+            Rayfield:Notify({Title = "Rebirth!", Content = "Triggered successfully!", Duration = 4})
+         end
+         -- If remote-based, add: game.ReplicatedStorage.RebirthEvent:FireServer()
+      end)
+   end
 end)
 
--- Auto rebirth (check GUI button or remote - adjust name if needed)
+-- Anti-AFK (always on)
 spawn(function()
-    while autoFarm do
-        wait(10)  -- check every 10s
-        pcall(function()
-            local rebirthGui = player.PlayerGui:FindFirstChild("Rebirth", true) or player.PlayerGui:FindFirstChild("RebirthButton", true)
-            if rebirthGui and rebirthGui:IsA("TextButton") then
-                firesignal(rebirthGui.MouseButton1Click)
-                print("Auto Rebirth triggered!")
-            end
-            -- Or fire remote if game uses one
-            local rs = game:GetService("ReplicatedStorage")
-            if rs:FindFirstChild("RebirthEvent") then
-                rs.RebirthEvent:FireServer()
-            end
-        end)
-    end
+   while true do
+      wait(math.random(60, 120))
+      local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+      if hum then hum.Jump = true end
+   end
 end)
 
--- Anti-AFK (simulate jump/move to avoid kick)
-spawn(function()
-    while autoFarm do
-        wait(math.random(60, 120))
-        hum.Jump = true
-        root.Velocity = root.Velocity + Vector3.new(math.random(-10,10), 0, math.random(-10,10))
-    end
-end)
+-- God mode attempt
+local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+if hum then
+   hum.MaxHealth = math.huge
+   hum.Health = math.huge
+end
 
--- God mode attempt (high health, ignore damage)
-hum.MaxHealth = math.huge
-hum.Health = math.huge
-
--- Toggle off on re-execute (simple flip)
-autoFarm = not autoFarm
-if not autoFarm then print("Auto Farm OFF") end
+Rayfield:Notify({
+   Title = "GUI Loaded!",
+   Content = "Toggle features above - Happy farming in OP Blade! ⚔️",
+   Duration = 6
+})
