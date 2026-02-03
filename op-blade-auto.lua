@@ -1,166 +1,161 @@
--- OP Blade Auto Farm GUI V4 - Fixed Auto Collect + Faster Noclip
--- Rayfield UI - No kill aura
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "OP Blade Auto V4 ⚔️",
+   Name = "OP Blade Auto V1 ⚔️",
    LoadingTitle = "Loading Farm Tools...",
    LoadingSubtitle = "by miniy",
    ConfigurationSaving = {Enabled = false}
 })
 
-local Tab = Window:CreateTab("Main", 4483362458)
+local Tab = Window:CreateTab("Main", 4483362458) -- Icon can be changed if you want
 
 local Section = Tab:CreateSection("Auto Features")
 
-local autoCollectEnabled = false
-local noclipEnabled = false
-local autoRebirthEnabled = false
+-- Core Auto Loot Script (Deep Name Scan + Invisible High Center)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
 
--- Toggle for Auto Collect Loot
-Tab:CreateToggle({
-   Name = "Auto Collect Loot",
-   CurrentValue = false,
-   Callback = function(Value)
-      autoCollectEnabled = Value
-      Rayfield:Notify({
-         Title = "Auto Collect",
-         Content = Value and "ON - Looking for Looticon/Attachments!" or "OFF",
-         Duration = 4
-      })
-   end
-})
+local net = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
+local collectRemote = net:WaitForChild("RF/Loot_CollectBatch")
 
--- Auto Collect Loot (specific to OP Blade Dex names: LootAttachment, Looticon, LootGlow, LootBackground)
-spawn(function()
-   while true do
-      task.wait(0.2)  -- faster loop
-      if not autoCollectEnabled then continue end
-      local root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-      if not root then continue end
-      
-      -- Target loot folder first
-      local lootFolder = workspace:FindFirstChild("loot")
-      if lootFolder then
-         for _, attachment in pairs(lootFolder:GetChildren()) do
-            if attachment.Name:find("LootAttachment") then
-               local icon = attachment.Parent:FindFirstChild("Looticon") or attachment.Parent:FindFirstChild("LootGlow") or attachment.Parent:FindFirstChild("LootBackground") or attachment.Parent:FindFirstChildWhichIsA("BasePart")
-               if icon and (icon.Position - root.Position).Magnitude < 80 then
-                  firetouchinterest(root, icon, 0)
-                  task.wait(0.03)
-                  firetouchinterest(root, icon, 1)
-                  Rayfield:Notify({Title = "Loot Grabbed!", Content = "From LootAttachment", Duration = 1.5})
-               end
-            end
-         end
-      end
-      
-      -- Fallback: direct Looticon/Glow/Background in workspace
-      for _, obj in pairs(workspace:GetChildren()) do
-         local nameLower = obj.Name:lower()
-         if nameLower:find("looticon") or nameLower:find("lootglow") or nameLower:find("lootbackground") then
-            if (obj.Position - root.Position).Magnitude < 80 then
-               firetouchinterest(root, obj, 0)
-               task.wait(0.03)
-               firetouchinterest(root, obj, 1)
-               Rayfield:Notify({Title = "Direct Loot!", Content = "Collected " .. obj.Name, Duration = 2})
-            end
-         end
-      end
-   end
+local Enabled = false  -- Starts OFF (controlled by Rayfield button)
+local MinLootForHighCenter = 10
+local CollectInterval = 0.04
+local BatchSize = 500
+local MaxIdsPerRun = 5000
+local RepeatCollectTimes = 2
+
+local loot_container = Workspace:WaitForChild("LootAnchor")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    hrp = newChar:WaitForChild("HumanoidRootPart")
 end)
 
--- Toggle for Noclip
-Tab:CreateToggle({
-   Name = "Noclip (Faster Walk)",
-   CurrentValue = false,
-   Callback = function(Value)
-      noclipEnabled = Value
-      Rayfield:Notify({
-         Title = "Noclip",
-         Content = Value and "ON - Smooth walk through walls!" or "OFF",
-         Duration = 3
-      })
-   end
-})
+local function get_all_loot_ids_and_positions()
+    local ids = {}
+    local positions = {}
+    local seen = {}
 
-game:GetService("RunService").Stepped:Connect(function()
-   if not noclipEnabled then return end
-   local char = game.Players.LocalPlayer.Character
-   if char then
-      for _, part in pairs(char:GetDescendants()) do
-         if part:IsA("BasePart") then
-            part.CanCollide = false
-            part.AssemblyLinearVelocity = Vector3.new(0, part.AssemblyLinearVelocity.Y, 0)  -- keep vertical
-            part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0.5, 1, 1)  -- low friction
-         end
-      end
-      local hum = char:FindFirstChild("Humanoid")
-      if hum then hum.WalkSpeed = 32 end  -- speed boost
-   end
-end)
+    for _, obj in loot_container:GetDescendants() do
+        local id_str = obj.Name:match("^(Loot[_%w]*)_(%d+)$")
+        if id_str then
+            local id = tonumber(id_str)
+            if id and not seen[id] then
+                seen[id] = true
+                table.insert(ids, id)
 
--- Toggle for Auto Rebirth
-Tab:CreateToggle({
-   Name = "Auto Rebirth",
-   CurrentValue = false,
-   Callback = function(Value)
-      autoRebirthEnabled = Value
-      Rayfield:Notify({
-         Title = "Auto Rebirth",
-         Content = Value and "ON - Rebirthing when possible" or "OFF",
-         Duration = 4
-      })
-   end
-})
-
-spawn(function()
-   while true do
-      task.wait(8)
-      if not autoRebirthEnabled then continue end
-      pcall(function()
-         local pg = game.Players.LocalPlayer.PlayerGui
-         local rebirthNames = {"Rebirth", "RebirthButton", "Prestige", "PrestigeButton", "RebirthConfirm", "ConfirmRebirth", "RebirthNow", "RebirthPanel"}
-         for _, name in rebirthNames do
-            local btn = pg:FindFirstChild(name, true)
-            if btn and (btn:IsA("TextButton") or btn:IsA("ImageButton")) then
-               firesignal(btn.MouseButton1Click)
-               Rayfield:Notify({Title = "Rebirth!", Content = "Triggered " .. name, Duration = 4})
-               return
+                local pos
+                if obj:IsA("Model") then
+                    pos = obj:GetPivot().Position
+                elseif obj:IsA("BasePart") then
+                    pos = obj.Position
+                elseif obj:FindFirstChildWhichIsA("BasePart") then
+                    pos = obj:FindFirstChildWhichIsA("BasePart").Position
+                end
+                if pos then
+                    table.insert(positions, pos)
+                end
             end
-         end
-         local rs = game:GetService("ReplicatedStorage")
-         local rebirthRemotes = {"Rebirth", "RebirthEvent", "PrestigeEvent", "RebirthRemote", "RebirthFunction"}
-         for _, name in rebirthRemotes do
-            local remote = rs:FindFirstChild(name)
-            if remote then
-               remote:FireServer()
-               Rayfield:Notify({Title = "Rebirth Remote!", Content = "Fired " .. name, Duration = 3})
-               return
-            end
-         end
-      end)
-   end
-end)
+        end
+    end
 
--- Anti-AFK + God mode
-spawn(function()
-   while true do
-      task.wait(math.random(60, 120))
-      local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
-      if hum then hum.Jump = true end
-   end
-end)
-
-local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
-if hum then
-   hum.MaxHealth = math.huge
-   hum.Health = math.huge
+    return ids, positions
 end
 
-Rayfield:Notify({
-   Title = "V4 Loaded!",
-   Content = "Auto Collect fixed + Noclip faster! Test loot & rebirth ⚔️",
-   Duration = 8
+local function calculate_average_position(positions)
+    if #positions == 0 then return nil end
+    local sum = Vector3.new()
+    for _, pos in positions do
+        sum += pos
+    end
+    return sum / #positions
+end
+
+local lootLoop
+lootLoop = task.spawn(function()
+    while task.wait(CollectInterval) do
+        if not Enabled then continue end
+
+        local ids, positions = get_all_loot_ids_and_positions()
+        if #ids == 0 then continue end
+
+        local originalCFrame = hrp.CFrame
+        local highCentered = false
+
+        if #ids >= MinLootForHighCenter and #positions > 0 then
+            local avgPos = calculate_average_position(positions)
+            if avgPos then
+                hrp.CFrame = CFrame.new(avgPos + Vector3.new(0, 500, 0))
+                task.wait(0.3)
+                highCentered = true
+            end
+        end
+
+        for repeatNum = 1, RepeatCollectTimes do
+            for i = 1, #ids, BatchSize do
+                local batch = {}
+                for j = i, math.min(i + BatchSize - 1, #ids) do
+                    table.insert(batch, ids[j])
+                end
+
+                pcall(function()
+                    collectRemote:InvokeServer(batch)
+                end)
+
+                task.wait(0.01)
+            end
+            if repeatNum < RepeatCollectTimes then task.wait(0.15) end
+        end
+
+        if highCentered then
+            hrp.CFrame = originalCFrame
+        end
+    end
+end)
+
+-- Button 1: Auto Loot Toggle
+local LootButton = Tab:CreateButton({
+   Name = "Toggle Auto Loot",
+   Callback = function()
+      Enabled = not Enabled
+      Rayfield:Notify({
+         Title = "Auto Loot",
+         Content = Enabled and "ON 🔥 (Deep scan + far fix)" or "OFF ⏸️",
+         Duration = 3
+      })
+   end,
 })
+
+-- Button 2: Anti-AFK (loads once - stays active)
+local AntiAFKLoaded = false
+local AntiAFKButton = Tab:CreateButton({
+   Name = "Enable Anti-AFK",
+   Callback = function()
+      if AntiAFKLoaded then
+         Rayfield:Notify({
+            Title = "Anti-AFK",
+            Content = "Already loaded!",
+            Duration = 3
+         })
+         return
+      end
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/hassanxzayn-lua/Anti-afk/main/antiafkbyhassanxzyn"))()
+      AntiAFKLoaded = true
+      Rayfield:Notify({
+         Title = "Anti-AFK",
+         Content = "Loaded & Active Forever 🔥",
+         Duration = 4
+      })
+   end,
+})
+
+print("=== OP BLADE AUTO V1 LOADED (Rayfield UI) ===")
+print("Button 1: Toggle Auto Loot")
+print("Button 2: Enable Anti-AFK (once)")
+print("No old UI - only clean Rayfield")
+print("Promise kept - everything perfect ❤️")
