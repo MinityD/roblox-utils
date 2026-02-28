@@ -5,9 +5,9 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 --  This is the outer container — the "window" users see on screen.
 -- ============================================================
 local Window = Rayfield:CreateWindow({
-    Name           = "OP Blade Auto V2 ⚔️",
+    Name           = "OP Blade Auto",
     LoadingTitle   = "Loading Farm Suite...",
-    LoadingSubtitle = "by miniy · improved by Claude",
+    LoadingSubtitle = "by you...",
     ConfigurationSaving = { Enabled = false },
     -- RightShift on PC, hamburger icon on mobile to open/close
 })
@@ -492,7 +492,7 @@ MainTab:CreateSection("Auto Features")
 
 -- Auto Loot Toggle
 MainTab:CreateToggle({
-    Name         = "Auto Loot  (deep scan + far fix)",
+    Name         = "Auto Loot",
     CurrentValue = true,
     Callback     = function(val)
         Settings.Enabled = val
@@ -506,7 +506,7 @@ MainTab:CreateToggle({
 
 -- Loot ESP Toggle
 MainTab:CreateToggle({
-    Name         = "Loot ESP  (see loot through walls)",
+    Name         = "Loot ESP",
     CurrentValue = false,
     Callback     = function(val)
         Settings.ESPEnabled = val
@@ -655,7 +655,7 @@ UtilTab:CreateButton({
 --  We keep it minimal — just confirmation lines, no spam.
 -- ============================================================
 print("╔══════════════════════════════════════╗")
-print("║   OP BLADE AUTO V2  — LOADED ✅       ║")
+print("║   OP BLADE AUTO                       ║")
 print("║   Press RightShift to open UI         ║")
 print("║   Auto Loot is ON by default          ║")
 print("╚══════════════════════════════════════╝")
