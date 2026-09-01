@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/a8a1243883703313802f72d0f974b86047618a794649a839172d993204675a9e/download"))()
+loadstring(game:HttpGet("https://scripter-coder.github.io/Scripter-s-Obfuscator/raw.html?id=ScripterHubOfficial_ohi4yfefkk&key=my_super_secret_key_2024_scripter&format"))()
